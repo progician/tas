@@ -1,65 +1,8 @@
-// #![feature(trace_macros)]
-//trace_macros!(true);
+mod core;
+mod matchers;
 
-pub use std::collections::HashMap;
-use std::fmt;
-
-
-pub enum AssertionState {
-    Passed,
-    Failed,
-}
-
-pub struct AssertionResult {
-    pub state: AssertionState,
-    pub file: String,
-    pub line: u32,
-    pub message: String,
-    pub assertion_text: String,
-}
-
-
-pub type AssertionResults = Vec<AssertionResult>;
-pub type TestCaseBody = fn() -> AssertionResults;
-pub struct TestCase {
-    pub file: String,
-    pub line: u32,
-    pub test_case_fn: TestCaseBody,
-}
-
-pub type MatchResult = Result<(), String>;
-pub trait Matcher<T> : fmt::Display {
-    fn matches(&self, actual: T) -> MatchResult;
-}
-
-pub fn success() -> MatchResult {
-    Ok(())
-}
-
-pub struct EqualTo<T> {
-    expected: T,
-}
-
-impl<T: fmt::Debug> fmt::Display for EqualTo<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.expected.fmt(f)
-    }
-}
-
-impl<T: PartialEq + fmt::Debug> Matcher<T> for EqualTo<T> {
-    fn matches(&self, actual: T) -> MatchResult {
-        if self.expected.eq(&actual) {
-            success()
-        } else {
-            Err(format!("was {:?}", actual))
-        }
-    }
-}
-
-
-pub fn equal_to<T: PartialEq + fmt::Debug>(expected: T) -> EqualTo<T> {
-    EqualTo { expected: expected }
-}
+pub use core::*;
+pub use matchers::equal_to::equal_to;
 
 
 #[macro_export]
