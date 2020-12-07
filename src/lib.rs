@@ -9,12 +9,13 @@ pub use matchers::equal_to::equal_to;
 macro_rules! tests {
     ($body:block) => {
         fn main() {
-            let mut test_cases: HashMap<String, TestCase> = HashMap::new();
+            let mut test_cases: Vec<TestCase> = Vec::new();
 
             macro_rules! test_case {
                 ($name:expr, $case_body:block) => {
-                    test_cases.insert($name.to_string(),
+                    test_cases.push(
                         TestCase {
+                            name: $name.to_string(),
                             file: file!().to_string(),
                             line: line!(),
                             test_case_fn: || {
@@ -22,16 +23,32 @@ macro_rules! tests {
 
                                 macro_rules! require {
                                     ($expected:expr) => {
-                                        if !$expected {
-                                            results.push(AssertionResult {
-                                                state: AssertionState::Failed,
-                                                file: file!().to_string(),
-                                                line: line!(),
-                                                message: format!("`{}` is `false`", stringify!($expected).to_string()),
-                                                assertion_text: format!("require!({})", stringify!($expected)).to_string(),
-                                            });
+                                        let assertion_state =
+                                            if $expected { AssertionState::Passed }
+                                            else { AssertionState::Failed }
+                                        ;
+                                        results.push(AssertionResult {
+                                            state: assertion_state,
+                                            file: file!().to_string(),
+                                            line: line!(),
+                                            message: format!("`{}` is `{}`", stringify!($expected), $expected).to_string(),
+                                            assertion_text: format!("require!({})", stringify!($expected)).to_string(),
+                                        });
+                                        if assertion_state == AssertionState::Failed {
                                             return results;
                                         }
+                                    };
+                                }
+
+                                macro_rules! check {
+                                    ($expected:expr) => {
+                                        results.push(AssertionResult {
+                                            state: if $expected { AssertionState::Passed } else { AssertionState::Failed },
+                                            file: file!().to_string(),
+                                            line: line!(),
+                                            message: format!("`{}` is `false`", stringify!($expected).to_string()),
+                                            assertion_text: format!("require!({})", stringify!($expected)).to_string(),
+                                        });
                                     };
                                 }
 
@@ -39,7 +56,42 @@ macro_rules! tests {
                                     ($actual:expr, $matcher:expr) => ({
                                         let m = $matcher;
                                         match m.matches($actual) {
-                                            Ok(_) => {},
+                                            Ok(_) => {
+                                                results.push(AssertionResult {
+                                                    state: AssertionState::Passed,
+                                                    file: file!().to_string(),
+                                                    line: line!(),
+                                                    message: format!("condition was satisifed"),
+                                                    assertion_text: format!("require_that!({}, {})", stringify!($actual), stringify!($matcher)).to_string(),
+                                                });
+                                            },
+                                            Err(mismatch) => {
+                                                results.push(AssertionResult {
+                                                    state: AssertionState::Failed,
+                                                    file: file!().to_string(),
+                                                    line: line!(),
+                                                    message: format!("Expected `{}` but {}", m, mismatch),
+                                                    assertion_text: format!("require_that!({}, {})", stringify!($actual), stringify!($matcher)).to_string(),
+                                                });
+                                                return results;
+                                            }
+                                        }
+                                    })
+                                }
+
+                                macro_rules! check_that {
+                                    ($actual:expr, $matcher:expr) => ({
+                                        let m = $matcher;
+                                        match m.matches($actual) {
+                                            Ok(_) => {
+                                                results.push(AssertionResult {
+                                                    state: AssertionState::Passed,
+                                                    file: file!().to_string(),
+                                                    line: line!(),
+                                                    message: format!("condition was satisifed"),
+                                                    assertion_text: format!("require_that!({}, {})", stringify!($actual), stringify!($matcher)).to_string(),
+                                                });
+                                            },
                                             Err(mismatch) => {
                                                 results.push(AssertionResult {
                                                     state: AssertionState::Failed,
@@ -52,7 +104,7 @@ macro_rules! tests {
                                         }
                                     })
                                 }
-                                
+
                                 $case_body;
                                 results
                             },
@@ -63,28 +115,45 @@ macro_rules! tests {
 
             $body
 
-            let mut all_succeeded = true;
-            for (name, case) in test_cases {
-                let test_case_assertions = (case.test_case_fn)();
-                if !test_case_assertions.is_empty() {
-                    println!("-------------------------------------------------------------------------------");
-                    println!("{}", name);
-                    println!("-------------------------------------------------------------------------------");
-                    println!("{}:{}", case.file, case.line);
-                    println!("...............................................................................");
+            let mut overall_results = OverAllResults {
+                test_cases: test_cases.len(),
+                assertions: 0,
+                failed_assertions: 0,
+                failed: 0,
+            };
+            let test_case_matcher = |r: &AssertionResult| r.state == AssertionState::Failed;
 
-                    for assertion_result in test_case_assertions {
-                        println!("{}:{}", assertion_result.file, assertion_result.line);
-                        println!("FAILED:");
-                        println!("   {}", assertion_result.assertion_text);
-                        println!("   {}", assertion_result.message);
+            for case in test_cases {
+                let test_case_assertions = (case.test_case_fn)();
+                overall_results.assertions += test_case_assertions.len();
+                let failed_assertions = test_case_assertions
+                    .iter()
+                    .filter(|r| r.state != AssertionState::Passed)
+                    .count()
+                ;
+
+                overall_results.failed_assertions += failed_assertions;
+                if failed_assertions != 0 {
+                    overall_results.failed += 1;
+                }
+
+                let filtered_assertions: AssertionResults = test_case_assertions
+                    .into_iter()
+                    .filter(test_case_matcher)
+                    .collect()
+                ;
+                if !filtered_assertions.is_empty() {
+                    println!("{}", case);
+                    for assertion_result in filtered_assertions {
+                        println!("{}", assertion_result);
                     }
-        
-                    all_succeeded = false;
                 }
             }
+
+            println!("===============================================================================");
+            println!("{}", overall_results);
         
-            if !all_succeeded {
+            if !overall_results.failed != 0 {
                 std::process::exit(1);
             }
             else {

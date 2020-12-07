@@ -77,7 +77,7 @@ tests!({
 
             let item_popped = stack_with_single_item.pop();
             require!(stack_with_single_item.empty());
-            require_that!(item_popped.unwrap(), equal_to(SINGLE_ITEM + 1));
+            require_that!(item_popped.unwrap(), equal_to(SINGLE_ITEM));
         }
     );
 });
