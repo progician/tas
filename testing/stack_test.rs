@@ -1,8 +1,5 @@
-// #![feature(trace_macros)]
-// trace_macros!(true);
-
-extern crate rust_testing;
-use rust_testing::*;
+extern crate tas;
+use tas::*;
 
 trait Stack {
     type Item;

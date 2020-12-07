@@ -1,3 +1,5 @@
+#![crate_name = "tas"]
+#![crate_type = "lib"]
 mod core;
 mod matchers;
 
