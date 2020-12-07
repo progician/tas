@@ -5,8 +5,9 @@ trait Stack {
     type Item;
 
     fn empty(&self) -> bool;
+    fn depth(&self) -> usize;
     fn push(&mut self, item: Self::Item);
-    fn top<'a>(&self) -> Option<&'a Self::Item>;
+    fn top(&self) -> Option<&Self::Item>;
     fn pop(&mut self) -> Option<Self::Item>;
 }
 
@@ -22,12 +23,16 @@ impl<T> Stack for MyStack<T> {
         self.vec.is_empty()
     }
 
+    fn depth(&self) -> usize {
+        self.vec.len()
+    }
+
     fn push(&mut self, item: Self::Item) {
         self.vec.push(item);
     }
 
-    fn top<'a>(&self) -> Option<&'a Self::Item> {
-        None
+    fn top(&self) -> Option<&Self::Item> {
+        self.vec.last()
     }
 
     fn pop(&mut self) -> Option<Self::Item> {
@@ -47,34 +52,71 @@ impl<T> MyStack<T> {
 
 tests!({
     test_case!(
-        "Stack is created empty",
+        "A new stack is empty",
         {
-            let freshly_created_stack: MyStack<i32> = MyStack::new();
-            require!(freshly_created_stack.empty());
+            let new_stack: MyStack<i32> = MyStack::new();
+
+            require!(new_stack.empty());
         }
     );
 
 
     test_case!(
-        "Pushing on an empty stack will no longer be empty",
+        "An empty stack returns None when queried for its top",
         {
-            let mut stack_with_items: MyStack<i32> = MyStack::new();
-            stack_with_items.push(12);
-            require!(!stack_with_items.empty());
+            let empty_stack: MyStack<i32> = MyStack::new();
+
+            require_that!(&empty_stack.top(), equal_to(None));
         }
     );
 
 
     test_case!(
-        "Popping from a stack containing a single item empties the stack",
+        "An empty stack returns None when popped",
         {
-            let mut stack_with_single_item: MyStack<i32> = MyStack::new();
-            const SINGLE_ITEM: i32 = 12;
-            stack_with_single_item.push(SINGLE_ITEM);
+            let mut empty_stack: MyStack<i32> = MyStack::new();
 
-            let item_popped = stack_with_single_item.pop();
-            require!(stack_with_single_item.empty());
-            require_that!(item_popped.unwrap(), equal_to(SINGLE_ITEM));
+            require_that!(&empty_stack.pop(), equal_to(None));
+        }
+    );
+
+
+    test_case!(
+        "A empty stack gains depth by pushing on it",
+        {
+            let mut stack: MyStack<String> = MyStack::new();
+
+            stack.push(String::from("Item"));
+
+            require_that!(&stack.depth(), equal_to(1));
+            require_that!(stack.top().unwrap(), equal_to(String::from("Item")));
+        }
+    );
+
+
+    test_case!(
+        "A non-empty stack gets deeper by pushing on it",
+        {
+            let mut stack: MyStack<String> = MyStack::new();
+            stack.push(String::from("Bottom Item"));
+
+            stack.push(String::from("Top Item"));
+
+            require_that!(&stack.depth(), equal_to(2));
+        }
+    );
+
+
+    test_case!(
+        "Popping from a non-empty stack regains tops in reverse order",
+        {
+            let mut stack: MyStack<String> = MyStack::new();
+            stack.push(String::from("Bottom Item"));
+            stack.push(String::from("Top Item"));
+
+            stack.pop();
+
+            require_that!(stack.top().unwrap(), equal_to(String::from("Bottom Item")));
         }
     );
 });

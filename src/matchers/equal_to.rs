@@ -12,8 +12,8 @@ impl<T: fmt::Debug> fmt::Display for EqualTo<T> {
 }
 
 impl<T: PartialEq + fmt::Debug> Matcher<T> for EqualTo<T> {
-    fn matches(&self, actual: T) -> MatchResult {
-        if self.expected.eq(&actual) {
+    fn matches(&self, actual: &T) -> MatchResult {
+        if self.expected.eq(actual) {
             success()
         } else {
             Err(format!("was {:?}", actual))
